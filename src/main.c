@@ -42,11 +42,23 @@ static void set_leds(float temperature){
 	P2OUT = mask;
 }
 
+static void go_to_12khz(){
+	DCOCTL = 0;
+	BCSCTL1 = 0;
+	BCSCTL2 = SELM_3 | SELS;
+	BCSCTL3 = LFXT1S_2;
+}
+
+static void go_to_1mhz(){
+	BCSCTL1 = CALBC1_1MHZ;
+	DCOCTL = CALDCO_1MHZ;
+	BCSCTL2 = 0;
+	BCSCTL3 = 0;
+}
+
 int main(void)
 {
 	WDTCTL = WDTPW + WDTHOLD;         
-	BCSCTL1 = CALBC1_1MHZ;
-	DCOCTL = CALDCO_1MHZ;
 
 	P1DIR &= ~BIT3;
 	P1OUT |= BIT3;
@@ -59,25 +71,14 @@ int main(void)
 
 	uart_setup();
 
-	float temperature = 17.5;
-	while(1)               
-	{
-		/*uint8_t level = HIGH;
-		ds_get_temperature(1,4, &temperature);
-		
-		char string [6];
-		sprintf(string, "%u.%02u", (int) temperature, (int) ((temperature - (float)((int)(temperature))) * 100));
-		uart_tx_string("Temperature: ");
-		uart_tx_string(string);
-		uart_tx_string("\r\n");
-		set_leds(temperature);
-
-		__delay_cycles(1000000);*/
-	}
+	go_to_12khz();
+	
+	while (1);
 }
 
 #pragma vector=PORT1_VECTOR
 __interrupt void Port_1(void){
+	go_to_1mhz();
 	float temperature = 0.0;
 	ds_get_temperature(1,4, &temperature);
 		
@@ -89,6 +90,7 @@ __interrupt void Port_1(void){
 	set_leds(temperature);
 	__delay_cycles(1000000);
 	P2OUT = 0x00;
+	go_to_12khz();
 	P1IFG &= ~BIT3;
 }
 
